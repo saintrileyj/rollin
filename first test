@@ -1,0 +1,182 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/shooting_dice/dice_rolling_visual.sora.yaml b/shooting_dice/dice_rolling_visual.sora.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..d53a40dd68ea3efb9319d84cee1763aa39796d97
+--- /dev/null
++++ b/shooting_dice/dice_rolling_visual.sora.yaml
+@@ -0,0 +1,81 @@
++# Sora visual file defining scenes for a dice-rolling animation
++version: 1.0
++
++scenes:
++  - id: roll_360
++    type: animation
++    asset: dice
++    action: roll
++    parameters:
++      rotation_degrees: 360
++      direction: towards_camera
++      force: medium
++      bounce_on_back_wall: true
++    camera: overhead
++    sound: dice_roll.wav
++    duration: 2.0
++
++  - id: roll_720
++    type: animation
++    asset: dice
++    action: roll
++    parameters:
++      rotation_degrees: 720
++      direction: towards_camera
++      force: medium
++      bounce_on_back_wall: true
++    camera: overhead
++    sound: dice_roll.wav
++    duration: 2.0
++
++  - id: roll_360_second
++    type: animation
++    asset: dice
++    action: roll
++    parameters:
++      rotation_degrees: 360
++      direction: towards_camera
++      force: medium
++      bounce_on_back_wall: true
++    camera: overhead
++    sound: dice_roll.wav
++    duration: 2.0
++
++  - id: roll_180
++    type: animation
++    asset: dice
++    action: roll
++    parameters:
++      rotation_degrees: 180
++      direction: towards_camera
++      force: medium
++      bounce_on_back_wall: true
++    camera: overhead
++    sound: dice_roll.wav
++    duration: 2.0
++
++  - id: settle
++    type: focus
++    text: "The dice tumble and come to rest, revealing their face values."
++    camera: low-angle
++    duration: 2.0
++
++  - id: probability_mark
++    type: overlay_text
++    text: "Probability of rolling {{total}} is {{probability}}%"
++    style:
++      font_size: 48px
++      color: white
++      shadow: true
++    position:
++      x: 50%
++      y: 80%
++    duration: 2.0
++
++  - id: prompt_repeat
++    type: narration
++    text: "Press the button below to roll again."
++    camera: centered
++    duration: 2.0
++
++# End of Sora visual file for dice rolling animation
+diff --git a/shooting_dice/index.html b/shooting_dice/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..19643c553b206404fb30b30a01e301da61718d9e
+--- /dev/null
++++ b/shooting_dice/index.html
+@@ -0,0 +1,85 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <title>Shooting dice</title>
++  <style>
++    body {
++      font-family: sans-serif;
++      padding: 1em;
++      text-align: center;
++    }
++    #message {
++      margin: 1em 0;
++      font-size: 1.2em;
++    }
++    button {
++      font-size: 1.2em;
++      padding: 0.8em 1.2em;
++      margin: 0.5em;
++    }
++  </style>
++</head>
++<body>
++  <h1>Shooting dice</h1>
++  <div id="message">Press "Come-Out Roll" to start.</div>
++  <button id="rollBtn">Come-Out Roll</button>
++
++  <script>
++    // Game state: 0 = come-out roll, 1 = point round
++    let state = 0;
++    let point = null;
++
++    function rollDice() {
++      const d1 = Math.floor(Math.random() * 6) + 1;
++      const d2 = Math.floor(Math.random() * 6) + 1;
++      return { d1, d2, total: d1 + d2 };
++    }
++
++    function onRoll() {
++      const { d1, d2, total } = rollDice();
++      const msgEl = document.getElementById('message');
++      const btn = document.getElementById('rollBtn');
++
++      if (state === 0) {
++        // Come-out roll
++        msgEl.textContent = `Come-Out Roll: ${d1} + ${d2} = ${total}`;
++        if (total === 7 || total === 11) {
++          msgEl.textContent += ' → Natural! You win!';
++          btn.textContent = 'Play Again';
++        } else if ([2, 3, 12].includes(total)) {
++          msgEl.textContent += ' → Craps! You lose!';
++          btn.textContent = 'Play Again';
++        } else {
++          point = total;
++          state = 1;
++          msgEl.textContent += ` → Point is ${point}.`;
++          btn.textContent = 'Roll for Point';
++        }
++      } else {
++        // Point round
++        msgEl.textContent = `Roll: ${d1} + ${d2} = ${total}`;
++        if (total === point) {
++          msgEl.textContent += ' → You hit your point! You win!';
++          btn.textContent = 'Play Again';
++          state = 0;
++        } else if (total === 7) {
++          msgEl.textContent += ' → Seven-out! You lose!';
++          btn.textContent = 'Play Again';
++          state = 0;
++        } else {
++          msgEl.textContent += ` → Still shooting for ${point}.`;
++        }
++      }
++
++      if (btn.textContent === 'Play Again') {
++        state = 0;
++        point = null;
++      }
++    }
++
++    document.getElementById('rollBtn').addEventListener('click', onRoll);
++  </script>
++</body>
++</html>
+ 
+EOF
+)
