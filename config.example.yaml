@@ -1,5 +1,5 @@
-broker: paper           # paper | robinhood | cashapp
-dry_run: true           # if true, log orders instead of submitting
+broker: alpaca          # alpaca | paper | robinhood | cashapp (cashapp unsupported)
+dry_run: true           # if true, log intended orders instead of submitting
 poll_interval: 60       # seconds between strategy ticks
 starting_cash: 10000    # only used by the paper broker
 

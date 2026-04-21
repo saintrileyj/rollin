@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>rollin — trade bot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot" id="bot-dot"></span>
+      <h1>rollin</h1>
+    </div>
+    <div class="broker-pill">
+      <select id="broker">
+        <option value="alpaca">Alpaca</option>
+        <option value="paper">Paper</option>
+        <option value="robinhood">Robinhood</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <section class="card account">
+      <div class="row">
+        <div class="label">Portfolio</div>
+        <div class="value" id="pv">—</div>
+      </div>
+      <div class="row subtle">
+        <div><span class="label">Cash</span> <span id="cash">—</span></div>
+        <div><span class="label">Buying&nbsp;power</span> <span id="bp">—</span></div>
+      </div>
+      <div class="row subtle">
+        <div><span class="label">Status</span> <span id="acct-status">—</span></div>
+        <button id="refresh" class="ghost">Refresh</button>
+      </div>
+    </section>
+
+    <section class="card controls">
+      <div class="row">
+        <button id="toggle-bot" class="primary">Start bot</button>
+        <button id="tick-now" class="ghost">Tick now</button>
+      </div>
+      <div class="grid2">
+        <label>Dry run
+          <input type="checkbox" id="dry-run" checked>
+        </label>
+        <label>Poll (sec)
+          <input type="number" id="poll" min="5" step="5" value="60">
+        </label>
+        <label>Fast SMA
+          <input type="number" id="fast" min="2" value="10">
+        </label>
+        <label>Slow SMA
+          <input type="number" id="slow" min="3" value="30">
+        </label>
+        <label>Order $
+          <input type="number" id="order-size" min="1" step="1" value="500">
+        </label>
+        <label>Lookback (d)
+          <input type="number" id="lookback" min="20" value="90">
+        </label>
+      </div>
+      <label class="full">Symbols (comma-separated)
+        <input type="text" id="symbols" value="AAPL, MSFT, SPY" autocapitalize="characters" autocorrect="off">
+      </label>
+      <button id="save-config" class="ghost small">Save config</button>
+      <div class="hint" id="last-tick">never ticked</div>
+    </section>
+
+    <section class="card positions">
+      <h2>Positions</h2>
+      <div id="positions-list"><div class="empty">no open positions</div></div>
+    </section>
+
+    <section class="card trade">
+      <h2>Manual trade</h2>
+      <div class="grid2">
+        <label>Symbol
+          <input type="text" id="trade-symbol" placeholder="AAPL" autocapitalize="characters" autocorrect="off">
+        </label>
+        <label>Notional $
+          <input type="number" id="trade-notional" min="1" placeholder="100">
+        </label>
+      </div>
+      <div class="row">
+        <button id="buy" class="buy">Buy</button>
+        <button id="sell" class="sell">Sell all</button>
+      </div>
+    </section>
+
+    <section class="card events">
+      <h2>Activity</h2>
+      <ul id="events"></ul>
+    </section>
+  </main>
+
+  <footer>
+    <small>paper or live — check your broker before going live. not financial advice.</small>
+  </footer>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

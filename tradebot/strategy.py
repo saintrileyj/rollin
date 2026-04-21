@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 Side = Literal["buy", "sell", "hold"]
 
@@ -25,7 +26,7 @@ class SmaCrossover:
         self.fast = fast
         self.slow = slow
 
-    def evaluate(self, symbol: str, history: pd.DataFrame) -> Signal:
+    def evaluate(self, symbol: str, history: "pd.DataFrame") -> Signal:
         closes = history["Close"]
         if len(closes) < self.slow + 2:
             return Signal(symbol, "hold", float(closes.iloc[-1]), "not enough bars")

@@ -1,94 +1,96 @@
 # rollin
 
-A small Python trade bot that runs an SMA-crossover strategy against a
-**Robinhood** account or a built-in **paper** account.
+A small trade bot with a mobile-friendly web UI. Runs an SMA-crossover
+strategy against an **Alpaca** account (free paper or live), with optional
+Robinhood and built-in paper brokers.
 
-> **⚠️ Read this before running it**
->
-> - This is educational software. Markets move fast; bugs lose money. Use the
->   paper broker until you trust the code.
-> - **Robinhood has no official public API.** This bot uses the community
->   [`robin_stocks`](https://github.com/jmfernandes/robin_stocks) library, which
->   drives the same private endpoints the Robinhood apps use. Automating your
->   account may conflict with Robinhood's Terms of Service. Proceed at your own
->   risk, and never with money you cannot afford to lose.
-> - **Cash App is not supported.** Cash App Investing does not expose a public
->   trading API — there is no sanctioned way to place trades on a Cash App
->   brokerage account from code. If you want something that behaves like Cash
->   App (commission free, fractional shares, simple HTTP API), use
->   [Alpaca](https://alpaca.markets); it has a free paper account and is easy
->   to swap in as another broker adapter.
-> - Nothing here is financial advice.
+<img alt="ui" src="docs/ui.png" width="320" onerror="this.style.display='none'">
+
+## Test it on your phone right now
+
+1. Get free Alpaca paper keys → <https://app.alpaca.markets/paper/dashboard/overview>
+   (sign in, "Generate New Key", copy the Key ID and Secret).
+
+2. On your computer:
+
+   ```bash
+   git clone <this repo> && cd rollin
+   python3 -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+
+   cp .env.example .env
+   # edit .env and paste your ALPACA_KEY_ID / ALPACA_SECRET_KEY
+   # leave ALPACA_BASE_URL=https://paper-api.alpaca.markets to stay on paper
+   ```
+
+3. Start the server:
+
+   ```bash
+   python -m tradebot.web
+   ```
+
+   It prints a line like `tradebot web UI:  http://192.168.1.42:5050`.
+
+4. On your phone (same Wi-Fi as your computer), open that URL in Safari /
+   Chrome. Add it to the home screen for an app-like launch — the UI is a
+   PWA-style full-width layout with a dark theme.
+
+> If you're not on the same network, tunnel it:
+> `ngrok http 5050` (or `cloudflared tunnel --url http://localhost:5050`),
+> then open the public URL on your phone. Keep `dry_run` on until you trust
+> it — even paper orders are rate-limited.
+
+## What you get in the UI
+
+- **Portfolio** card — cash, buying power, portfolio value, account status.
+- **Controls** — Start/Stop the bot, tick once on demand, toggle dry-run,
+  tune poll interval, SMA windows, order size, lookback, and symbol list.
+- **Positions** — live list of open positions with quantity and avg price.
+- **Manual trade** — buy a dollar-notional amount or sell a whole position.
+- **Activity** — rolling log of signals, orders, and errors.
+
+All of it calls the same JSON API (`GET /api/account`, `POST /api/orders`,
+etc.) so you can script against it too.
+
+## About the brokers
+
+- **Alpaca (default)** — real HTTP trading API, free paper endpoint, no
+  commissions, fractional shares. Set `ALPACA_BASE_URL` to
+  `https://api.alpaca.markets` to go live.
+- **Paper** — fully simulated, state persisted to `state/paper.json`. Good
+  for poking at the UI with no account.
+- **Robinhood** — community `robin_stocks` library, no official API. Using
+  it may conflict with Robinhood's ToS. Proceed at your own risk.
+- **Cash App** — **not supported.** Cash App Investing has no public trading
+  API. The adapter exists only to surface that clearly and point you at
+  Alpaca.
+
+## CLI (no UI)
+
+```bash
+cp config.example.yaml config.yaml
+python -m tradebot -c config.yaml        # loop forever
+python -m tradebot --once                # single tick, useful for cron
+```
 
 ## Layout
 
 ```
 tradebot/
-  __main__.py     # CLI entry (python -m tradebot)
-  bot.py          # main loop
-  brokers.py      # PaperBroker, RobinhoodBroker, CashAppBroker (stub)
-  strategy.py     # SMA crossover
-  data.py         # yfinance price history
-config.example.yaml
-.env.example
+  __main__.py        # CLI entry
+  web.py             # Flask entry (python -m tradebot.web)
+  runner.py          # threaded bot runner shared by CLI and UI
+  bot.py             # simple CLI loop
+  brokers.py         # Alpaca, Paper, Robinhood, CashApp (stub)
+  strategy.py        # SMA crossover
+  data.py            # yfinance price data
+  templates/index.html
+  static/app.js
+  static/style.css
 ```
 
-## Setup
+## Disclaimers
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-cp config.example.yaml config.yaml
-cp .env.example .env        # only needed for the robinhood broker
-```
-
-Edit `config.yaml` to pick your broker, symbols, and strategy parameters.
-If you set `broker: robinhood`, fill in `ROBINHOOD_USERNAME` /
-`ROBINHOOD_PASSWORD` in `.env`. If your account has 2FA enabled, add
-`ROBINHOOD_MFA_SECRET` (the base32 secret from your authenticator app, *not*
-a 6-digit code — the bot generates codes on demand with `pyotp`).
-
-## Run
-
-Dry-run paper loop (safe — only logs intended orders):
-
-```bash
-python -m tradebot -c config.yaml
-```
-
-Single tick and exit (useful for cron):
-
-```bash
-python -m tradebot --once
-```
-
-To actually place orders, flip `dry_run: false` in `config.yaml`.
-
-## Strategy
-
-`sma_crossover` is the only strategy included. Each tick it pulls daily bars
-for every configured symbol, computes a fast and slow simple moving average,
-and emits:
-
-- **buy** when the fast SMA crosses above the slow SMA
-- **sell** (close the full position) when it crosses below
-- **hold** otherwise
-
-Add new strategies by implementing `evaluate(symbol, history) -> Signal` in
-`tradebot/strategy.py` and registering them in `build()`.
-
-## Adding another broker
-
-Implement the `Broker` protocol in `tradebot/brokers.py`:
-
-```python
-def connect(self) -> None: ...
-def cash(self) -> float: ...
-def positions(self) -> dict[str, Position]: ...
-def buy(self, symbol, notional_usd, price) -> OrderResult: ...
-def sell(self, symbol, quantity, price) -> OrderResult: ...
-```
-
-then register it in `build()`. Alpaca is a natural next adapter — its
-`alpaca-py` SDK maps almost one-for-one onto these methods.
+Educational software. Bugs can cost real money — keep `dry_run: true` and
+`ALPACA_BASE_URL` pointing at the paper endpoint until you're sure. Nothing
+here is financial advice.

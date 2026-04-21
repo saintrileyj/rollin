@@ -168,8 +168,8 @@ class RobinhoodBroker:
 class CashAppBroker:
     def connect(self) -> None:
         raise NotImplementedError(
-            "Cash App does not offer a public trading API. Use broker='robinhood' or "
-            "switch to a broker with a real API (e.g. Alpaca — see README)."
+            "Cash App does not offer a public trading API. Use broker='alpaca' or "
+            "'robinhood' instead (see README)."
         )
 
     def cash(self) -> float: raise NotImplementedError
@@ -178,12 +178,109 @@ class CashAppBroker:
     def sell(self, symbol, quantity, price): raise NotImplementedError
 
 
+# ---------------------------------------------------------------------------
+# Alpaca broker — real HTTP API, commission-free, fractional shares, and a
+# free paper endpoint at paper-api.alpaca.markets. Set ALPACA_KEY_ID and
+# ALPACA_SECRET_KEY (and ALPACA_BASE_URL to switch between paper and live).
+# ---------------------------------------------------------------------------
+
+class AlpacaBroker:
+    def __init__(self) -> None:
+        self._session = None
+        self._base = ""
+
+    def connect(self) -> None:
+        import requests
+
+        key = os.environ.get("ALPACA_KEY_ID")
+        secret = os.environ.get("ALPACA_SECRET_KEY")
+        base = os.environ.get("ALPACA_BASE_URL", "https://paper-api.alpaca.markets").rstrip("/")
+        if not key or not secret:
+            raise RuntimeError("set ALPACA_KEY_ID and ALPACA_SECRET_KEY in the environment")
+
+        s = requests.Session()
+        s.headers.update({
+            "APCA-API-KEY-ID": key,
+            "APCA-API-SECRET-KEY": secret,
+            "Content-Type": "application/json",
+        })
+        # Validate credentials up front with a light call.
+        r = s.get(f"{base}/v2/account", timeout=10)
+        r.raise_for_status()
+        self._session = s
+        self._base = base
+
+    def _get(self, path: str):
+        r = self._session.get(f"{self._base}{path}", timeout=10)
+        r.raise_for_status()
+        return r.json()
+
+    def _post(self, path: str, body: dict):
+        r = self._session.post(f"{self._base}{path}", json=body, timeout=10)
+        if r.status_code >= 400:
+            raise RuntimeError(f"alpaca {path} -> {r.status_code}: {r.text}")
+        return r.json()
+
+    def cash(self) -> float:
+        acct = self._get("/v2/account")
+        return float(acct.get("cash") or 0)
+
+    def account(self) -> dict:
+        """Bonus helper used by the web UI — richer than cash() alone."""
+        acct = self._get("/v2/account")
+        return {
+            "cash": float(acct.get("cash") or 0),
+            "buying_power": float(acct.get("buying_power") or 0),
+            "portfolio_value": float(acct.get("portfolio_value") or 0),
+            "equity": float(acct.get("equity") or 0),
+            "status": acct.get("status"),
+            "currency": acct.get("currency", "USD"),
+        }
+
+    def positions(self) -> dict[str, Position]:
+        out: dict[str, Position] = {}
+        for p in self._get("/v2/positions"):
+            qty = float(p.get("qty") or 0)
+            if qty == 0:
+                continue
+            out[p["symbol"]] = Position(
+                symbol=p["symbol"],
+                quantity=qty,
+                avg_price=float(p.get("avg_entry_price") or 0),
+            )
+        return out
+
+    def buy(self, symbol: str, notional_usd: float, price: float) -> OrderResult:
+        body = {
+            "symbol": symbol,
+            "notional": round(notional_usd, 2),
+            "side": "buy",
+            "type": "market",
+            "time_in_force": "day",
+        }
+        resp = self._post("/v2/orders", body)
+        return OrderResult(symbol, "buy", notional_usd / price, price, broker_id=resp.get("id"))
+
+    def sell(self, symbol: str, quantity: float, price: float) -> OrderResult:
+        body = {
+            "symbol": symbol,
+            "qty": str(round(quantity, 6)),
+            "side": "sell",
+            "type": "market",
+            "time_in_force": "day",
+        }
+        resp = self._post("/v2/orders", body)
+        return OrderResult(symbol, "sell", quantity, price, broker_id=resp.get("id"))
+
+
 def build(name: str, config: dict) -> Broker:
     name = name.lower()
     if name == "paper":
         return PaperBroker(starting_cash=float(config.get("starting_cash", 10_000)))
     if name == "robinhood":
         return RobinhoodBroker()
+    if name == "alpaca":
+        return AlpacaBroker()
     if name == "cashapp":
         return CashAppBroker()
     raise ValueError(f"unknown broker: {name}")
