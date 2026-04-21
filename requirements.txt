@@ -1,0 +1,7 @@
+robin_stocks>=3.0.6
+yfinance>=0.2.40
+pandas>=2.0.0
+numpy>=1.24.0
+PyYAML>=6.0
+python-dotenv>=1.0.0
+pyotp>=2.9.0

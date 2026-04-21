@@ -1,0 +1,16 @@
+broker: paper           # paper | robinhood | cashapp
+dry_run: true           # if true, log orders instead of submitting
+poll_interval: 60       # seconds between strategy ticks
+starting_cash: 10000    # only used by the paper broker
+
+symbols:
+  - AAPL
+  - MSFT
+  - SPY
+
+strategy:
+  name: sma_crossover
+  fast: 10
+  slow: 30
+  lookback_days: 90
+  order_size_usd: 500   # notional dollars per buy
